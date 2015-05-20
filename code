@@ -1,0 +1,78 @@
+import os
+import sys
+import numpy as np
+import cv2
+
+cap = cv2.VideoCapture(0) 
+#resise the window
+ret = cap.set(3,300)   
+ret = cap.set(4,240)
+ret=cap.set(5,1)
+kernel = np.ones((5,5),np.uint8)
+while(True):
+	# Capture frame-by-frame
+	ret, frame = cap.read()
+	scale = 1
+	delta = 0
+	ddepth = cv2.CV_16S
+	
+	stepX=300/3
+	stepY=240/3
+
+	for j in range(0, 4):
+		for i in range(0, 4):
+			
+			x0=i*stepX
+			x1=(i*stepX)+stepX
+			y0=j*stepY
+			y1=(j*stepY)+stepY
+
+			#make image in gray_scale mode
+			gray = cv2.cvtColor(frame,cv2.COLOR_BGR2GRAY)
+
+			# remove noise
+			ret1,th1 = cv2.threshold(gray,20,255,cv2.THRESH_BINARY)
+			ret2,th2 = cv2.threshold(th1,15,255,cv2.THRESH_BINARY+cv2.THRESH_OTSU)
+
+
+			# Sobel -X
+			grad_x = cv2.Sobel(th2,ddepth,1,0,ksize = 5, scale = scale, delta = delta,borderType = cv2.BORDER_DEFAULT)
+			# Sobel -Y
+			grad_y = cv2.Sobel(th2,ddepth,0,1,ksize = 5, scale = scale, delta = delta, borderType = cv2.BORDER_DEFAULT)
+					
+			# converting back to uint8
+			abs_grad_x = cv2.convertScaleAbs(grad_x)   
+			abs_grad_y = cv2.convertScaleAbs(grad_y)
+			dst = cv2.addWeighted(abs_grad_x,20.5,abs_grad_y,0.5,0)
+
+			dilation = cv2.dilate(dst,kernel,iterations = 5)
+			
+			# find contours
+			contours, hier = cv2.findContours(dilation[0: x1, 0: y1],cv2.RETR_LIST,cv2.CHAIN_APPROX_SIMPLE)
+
+			for cnt in contours:
+				
+				(x,y),radius = cv2.minEnclosingCircle(cnt)
+				center = (int(x),int(y))
+				radius = int(radius)
+				cv2.circle(frame,center,radius,(0,255,0),3)		
+				print center
+		
+			
+
+	
+
+	#plot the images	
+			
+	cv2.imshow('dst',dst)
+	
+	cv2.imshow('dt',frame)	
+	k=cap.get(5)
+	print k
+	#close the window when q is pressed
+	
+	if cv2.waitKey(1) & 0xFF == ord("q"):
+		break
+# When everything done, release the capture
+cap.release()		
+cv2.destroyAllWindows()
